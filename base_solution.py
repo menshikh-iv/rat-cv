@@ -5,7 +5,7 @@ import numpy as np
 def main():
     # noinspection PyArgumentList
     cap = cv2.VideoCapture("video/00023.avi")
-    out = cv2.VideoWriter("main_stages.avi", cv2.VideoWriter_fourcc(*'PIM1'), 25,
+    out = cv2.VideoWriter("main_stages_2.avi", cv2.VideoWriter_fourcc(*'PIM1'), 25,
                           (640 * 2, 480 * 2), isColor=False)
     _, back = cap.read()
 
@@ -58,10 +58,6 @@ def main():
                 cv2.circle(orig, (c_x, c_y), 3, (0, 0, 255), -1)
                 rat_path.append((c_x, c_y))
 
-        # rat_path = rat_path[-500:]
-        for (p1, p2) in zip(rat_path, rat_path[1:]):
-            cv2.line(orig, p1, p2, (0, 0, 240))
-
         avg_pth = []
         avg_step = 15
         for idx in range(avg_step, len(rat_path), avg_step):
@@ -72,7 +68,7 @@ def main():
 
         dst = 0.0
         for (p1, p2) in zip(avg_pth, avg_pth[1:]):
-            cv2.line(orig, p1, p2, (0, 255, 255), thickness=3)
+            cv2.line(orig, p1, p2, (0, 255, 255), thickness=2)
             dst += ((p2[0] - p1[0]) ** 2 + (p2[1] - p1[1]) ** 2) ** 0.5
 
         cv2.putText(orig, 'Path: {}'.format(int(dst)), (20, 50),
@@ -80,15 +76,30 @@ def main():
 
         cv2.drawContours(orig, contours, cnt_idx, (0, 240, 0), thickness=3)
 
-        cv2.imshow("contour", orig)
-        # cv2.imshow('frame', thresh)
+        """
+        circles = cv2.HoughCircles(frame, cv2.HOUGH_GRADIENT, 1, 20,
+                                   param1=50, param2=30, minRadius=260, maxRadius=300)
 
+        circles = np.uint16(np.around(circles))
+        for i in circles[0, :]:
+            # draw the outer circle
+            cv2.circle(orig, (i[0], i[1]), i[2], (0, 255, 0), 2)
+            # draw the center of the circle
+            cv2.circle(orig, (i[0], i[1]), 2, (0, 0, 255), 3)
+        """
+
+
+        cv2.imshow("contour", orig)
+        cv2.imshow('frame', thresh)
+
+        """
         h1 = np.hstack((_output_gray_blur, _output_diff))
         h2 = np.hstack((_output_thresh, _output_dilate))
         full = np.vstack((h1, h2))
 
         cv2.imshow("FULL", full)
         out.write(full)
+        """
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
