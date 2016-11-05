@@ -1,13 +1,17 @@
 import cv2
+import numpy as np
 
 
 def main():
     # noinspection PyArgumentList
     cap = cv2.VideoCapture("video/00023.avi")
-    out = cv2.VideoWriter("solution.avi", cv2.VideoWriter_fourcc(*'XVID'), 25, (640, 480))
+    out = cv2.VideoWriter("main_stages.avi", cv2.VideoWriter_fourcc(*'PIM1'), 25,
+                          (640 * 2, 480 * 2), isColor=False)
     _, back = cap.read()
+
+    gauss_size = (19, 19)
     back = cv2.cvtColor(back, cv2.COLOR_BGR2GRAY)
-    back = cv2.GaussianBlur(back, (19, 19), 0)
+    back = cv2.GaussianBlur(back, gauss_size, 0)
 
     rat_path = []
     fr_counter = 0
@@ -17,11 +21,27 @@ def main():
         orig = frame.copy()
 
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        frame = cv2.GaussianBlur(frame, (19, 19), 0)
+        frame = cv2.GaussianBlur(frame, gauss_size, 0)
+
+        _output_gray_blur = frame.copy()
+        cv2.putText(_output_gray_blur, 'Gray + Blur (19, 19)', (20, 50),
+                    cv2.FONT_HERSHEY_COMPLEX, 1, (255, 255, 255), 2)
 
         delta = cv2.absdiff(back, frame)
+        _output_diff = delta.copy()
+        cv2.putText(_output_diff, 'Diff', (20, 50),
+                    cv2.FONT_HERSHEY_COMPLEX, 1, (255, 255, 255), 2)
+
         _, thresh = cv2.threshold(delta, 20, 255, cv2.THRESH_BINARY)
+        _output_thresh = thresh.copy()
+        cv2.putText(_output_thresh, 'Thresh binary (20, 255)', (20, 50),
+                    cv2.FONT_HERSHEY_COMPLEX, 1, (255, 255, 255), 2)
+
         thresh = cv2.dilate(thresh, None, iterations=10)
+        _output_dilate = thresh.copy()
+        cv2.putText(_output_dilate, 'Dilate', (20, 50),
+                    cv2.FONT_HERSHEY_COMPLEX, 1, (255, 255, 255), 2)
+
         img_cnt, contours, _ = cv2.findContours(cv2.Canny(thresh, 30, 200), cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
         # TODO select best contour (largest not works)
@@ -61,8 +81,14 @@ def main():
         cv2.drawContours(orig, contours, cnt_idx, (0, 240, 0), thickness=3)
 
         cv2.imshow("contour", orig)
-        cv2.imshow('frame', thresh)
-        out.write(orig)
+        # cv2.imshow('frame', thresh)
+
+        h1 = np.hstack((_output_gray_blur, _output_diff))
+        h2 = np.hstack((_output_thresh, _output_dilate))
+        full = np.vstack((h1, h2))
+
+        cv2.imshow("FULL", full)
+        out.write(full)
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
