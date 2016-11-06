@@ -4,9 +4,10 @@ import numpy as np
 
 def main():
     # noinspection PyArgumentList
-    cap = cv2.VideoCapture("video/00023.avi")
-    out = cv2.VideoWriter("main_stages_2.avi", cv2.VideoWriter_fourcc(*'PIM1'), 25,
-                          (640 * 2, 480 * 2), isColor=False)
+    cap = cv2.VideoCapture("video/00023.mp4")
+    out_curr = cv2.VideoWriter("solution_2.avi", cv2.VideoWriter_fourcc(*'PIM1'), 25, (1280, 720))
+    #out = cv2.VideoWriter("main_stages_2.avi", cv2.VideoWriter_fourcc(*'PIM1'), 25,
+    #                      (640 * 2, 480 * 2), isColor=False) #1280 x 720
     _, back = cap.read()
 
     gauss_size = (19, 19)
@@ -15,12 +16,29 @@ def main():
 
     rat_path = []
     fr_counter = 0
+    mc_x, mc_y, mc_r = None, None, None
+    mc_mask = np.zeros((back.shape[0], back.shape[1]), dtype=back.dtype) + 255
+
     while cap.isOpened():
         _, frame = cap.read()
         fr_counter += 1
         orig = frame.copy()
 
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+        if mc_r is None:
+            circles = cv2.HoughCircles(frame, cv2.HOUGH_GRADIENT, 2., 250, minRadius=250, maxRadius=300)
+            if circles is not None:
+                circles = np.round(circles[0, :]).astype("int")
+                for (x, y, r) in circles:
+                    mc_x, mc_y, mc_r = (x, y, r + 5)
+
+                    for i in range(mc_mask.shape[0]):
+                        for j in range(mc_mask.shape[1]):
+                            if ((mc_y - i) ** 2 + (mc_x - j) ** 2) ** 0.5 > mc_r:
+                                mc_mask[i][j] = 0
+                    break
+
         frame = cv2.GaussianBlur(frame, gauss_size, 0)
 
         _output_gray_blur = frame.copy()
@@ -38,6 +56,7 @@ def main():
                     cv2.FONT_HERSHEY_COMPLEX, 1, (255, 255, 255), 2)
 
         thresh = cv2.dilate(thresh, None, iterations=10)
+        thresh &= mc_mask
         _output_dilate = thresh.copy()
         cv2.putText(_output_dilate, 'Dilate', (20, 50),
                     cv2.FONT_HERSHEY_COMPLEX, 1, (255, 255, 255), 2)
@@ -47,6 +66,8 @@ def main():
         # TODO select best contour (largest not works)
         # largest_cnt = sorted(contours, key=cv2.contourArea, reverse=True)
 
+        cv2.circle(orig, (mc_x, mc_y), mc_r, (0, 0, 200), 4)
+
         cnt_idx = 0
         for idx, c in enumerate(contours):
             if idx == cnt_idx:
@@ -55,8 +76,10 @@ def main():
                     continue
                 c_x = int(mm["m10"] / mm["m00"])
                 c_y = int(mm["m01"] / mm["m00"])
-                cv2.circle(orig, (c_x, c_y), 3, (0, 0, 255), -1)
-                rat_path.append((c_x, c_y))
+
+                if ((c_x - mc_x) ** 2 + (c_y - mc_y) ** 2) ** 0.5 <= mc_r:
+                    cv2.circle(orig, (c_x, c_y), 3, (0, 0, 255), -1)
+                    rat_path.append((c_x, c_y))
 
         avg_pth = []
         avg_step = 15
@@ -76,21 +99,9 @@ def main():
 
         cv2.drawContours(orig, contours, cnt_idx, (0, 240, 0), thickness=3)
 
-        """
-        circles = cv2.HoughCircles(frame, cv2.HOUGH_GRADIENT, 1, 20,
-                                   param1=50, param2=30, minRadius=260, maxRadius=300)
-
-        circles = np.uint16(np.around(circles))
-        for i in circles[0, :]:
-            # draw the outer circle
-            cv2.circle(orig, (i[0], i[1]), i[2], (0, 255, 0), 2)
-            # draw the center of the circle
-            cv2.circle(orig, (i[0], i[1]), 2, (0, 0, 255), 3)
-        """
-
-
         cv2.imshow("contour", orig)
         cv2.imshow('frame', thresh)
+        out_curr.write(orig)
 
         """
         h1 = np.hstack((_output_gray_blur, _output_diff))
@@ -105,7 +116,8 @@ def main():
             break
 
     cap.release()
-    out.release()
+    # out.release()
+    out_curr.release()
     cv2.destroyAllWindows()
 
 
