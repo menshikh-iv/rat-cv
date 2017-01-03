@@ -28,10 +28,27 @@ def get_square(xs, ys):
     return 0.5 * abs(res)
 
 
+def smooth_path(rat_path, avg_step=7):
+    for _ in range(len(rat_path)):
+        for idx, (p1, p2) in enumerate(zip(rat_path, rat_path[1:])):
+            if ((p2[0] - p1[0]) ** 2 + (p2[1] - p1[1]) ** 2) ** 0.5 < 3:
+                rat_path.pop(idx)
+                break
+
+    avg_pth = []
+    for idx in range(avg_step, len(rat_path), avg_step):
+        avg_x = sum([p1 for (p1, _) in rat_path[idx - avg_step: idx]]) / avg_step
+        avg_y = sum([p2 for (_, p2) in rat_path[idx - avg_step: idx]]) / avg_step
+
+        avg_pth.append((avg_x, avg_y))
+
+    return avg_pth
+
+
 def main():
     # noinspection PyArgumentList
     cap = cv2.VideoCapture("video/00023.mp4")
-    out_curr = cv2.VideoWriter("solution_3.avi", cv2.VideoWriter_fourcc(*'PIM1'), 25, (1280, 720))
+    out_curr = cv2.VideoWriter("solution_final.avi", cv2.VideoWriter_fourcc(*'PIM1'), 25, (1280, 720))
     _, back = cap.read()
 
     gauss_size = (19, 19)
@@ -126,8 +143,9 @@ def main():
             cv2.circle(orig, (c_x, c_y), 3, (0, 0, 255), -1)
             rat_path.append((c_x, c_y))
 
+            avg_pth = smooth_path(rat_path)
             dst = 0.0
-            for (p1, p2) in zip(rat_path, rat_path[1:]):
+            for (p1, p2) in zip(avg_pth, avg_pth[1:]):
                 cv2.line(orig, p1, p2, (0, 255, 255), thickness=2)
                 dst += ((p2[0] - p1[0]) ** 2 + (p2[1] - p1[1]) ** 2) ** 0.5
 
